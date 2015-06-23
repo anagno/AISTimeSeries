@@ -79,32 +79,13 @@ switch nargin
         error ('Too few or too many arguments were entered');
 end
 
-
-% Initiliazation of antigens (AG) popoluation C
-% Καθορισμός των προτύπων των αντιγόνων ως σύνολο εκπαίδευσης D_T
-%while κάποια συνθήκη τερματισμού είναι αναληθείς do
-    %for κάθε πρότυπο αντιγόνου z p ∈ D T do
-        %Επιλογή ενός υποσυνόλου ΤΛ για έκθεση στο z p ,σαν πληθυσμός S ≤ C;
-        %for για κάθε ΤΛ x i ∈ S do
-            %Υπολογισμός την ομοιότητα του αντιγόνου μεταξύ z p , x i ;
-        %end
-        %Επιλογή ενός υποσυνόλου ΤΛ που έχουν την μεγαλύτερη ομοιότητα
-        %αντιγόνων σαν πληθυσμός H ≤ S;
-        %Προσαρμογή των ΤΛ με κάποια μέθοδο επιλογής, με βάση την
-        %υπολογισμένη ομοιότητα και/ή την ομοιότητα του δικτύου
-        %των ΤΛ στο H;
-        %Ανανέωση του βαθμού ομοιότητας των ΤΛ στο H;
-    %end
-%end
-
-
 % Training (imune memory cretion)
 % Loading of the training population of antigens (AG).
 % An AGx represnets a single x pattern, and AGy represents a single y
 % pattern. Both populations of AGx and AGy are divided in the same way  
 % into two subsets - training one and test one. The
-% first sequences of the time sereis (typically two thirds of the whole
-% time series) are included in the taining sets and the latest sequences are
+% first sequences of the time series (typically two thirds of the whole
+% time series) are included in the training sets and the latest sequences are
 % included in the tests set. Immune memory is trained using the training set
 % and after learning the model is test using test set [1,2]
 % x is input and y is output
@@ -131,9 +112,6 @@ ABx_test = AGx_test;
 ABy_train = AGy_etrain;
 ABy_test = AGy_test;
 
-paratope_x = [AGx_train, ABx_train];
-paratope_y = [AGy_train, ABy_train];
-
 % Calculation of the affinity of antibodies for antigens
 % The affinity measure is based on the euclidean distance between x-chains 
 % of antigens and antibodies. 
@@ -154,10 +132,12 @@ paratope_y = [AGy_train, ABy_train];
 % encoded in the paratope of the kth ABy. These elements are forecasted
 % using the epitope of the ith AGy [2]
 
-similiarity_AGx_to_ABx = zeros(size(AGx_train),size(ABx_train));
+x_similiarity_AGx_to_ABx = zeros(size(AGx_train),size(ABx_train));
 
 for  index_i = 1:size(AGx_train)
     for index_j = 1: size (ABx_train)
+	
+	distance_pi_xj = 	
         rk = d(pk,xa) + c_param(d(pk,xb)-d(pk,xa) )
 
         % ΠΩΣ ΒΡΙΣΚΟΥΜΕ ΤΟ ΚΟΝΤΙΝΟΤΕΡΟ ΑΝΤΙΓΟΝΟ ΚΑΙ ΤΟ ΜΑΚΡΥΤΕΡΟ. ΚΑΙ ΤΙ ΕΝΝΟΥΜΕ
@@ -172,7 +152,7 @@ for  index_i = 1:size(AGx_train)
     end
 end
 
-similiarity_AGy_to_ABy = zeros(size(AGy_train),size(ABy_train));
+x_similiarity_AGy_to_ABy = zeros(size(AGy_train),size(ABy_train));
 
 for  index_i = 1:size(AGx_train)
     for index_j = 1: size (ABx_train)
@@ -193,7 +173,7 @@ end
                                                   
 % KATI DEN PIANW. GIATI TA YPOLOGIZOYME 2 FORES ME DIAFORETIKOUS TYPOUS???
                                                   
-similiarity_ABx_to_AGx = zeros(size(AGx_train),size(ABx_train));
+y_similiarity_ABx_to_AGx = zeros(size(AGx_train),size(ABx_train));
 
 for  index_i = 1:size(AGx_train)
     for index_j = 1: size (ABx_train)
@@ -211,7 +191,7 @@ for  index_i = 1:size(AGx_train)
     end
 end
 
-similiarity_AGy_to_ABy = zeros(size(AGy_train),size(ABy_train));
+y_similiarity_AGy_to_ABy = zeros(size(AGy_train),size(ABy_train));
 
 for  index_i = 1:size(AGx_train)
     for index_j = 1: size (ABx_train)
@@ -294,3 +274,11 @@ end
 
 end
 
+function [ distance ] = Distance( first_value, second_value)
+% Distance This is a function for calculating the distance.
+%   In this function we calculate the euclidean distance but it can be
+%   replaced with whatever we want
+
+	distance = sqrt((first_value-second_value)^2);
+	
+end
