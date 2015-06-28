@@ -1,4 +1,4 @@
-function [ forecast ] = AISShortForecasting( original_data, ... 
+function [ forecast,forecast_antigen ] = AISShortForecasting( original_data, ... 
     threshold, training_percentage, max_iterations, beta )
 %AISShortForecasting This is a function for forecasting time series using an
 %artificial immune system
@@ -229,7 +229,7 @@ end
 % The y-chain of the input antigen is reconstructed from the y-chains of 
 % the antibodies contained in the Omega set.
 
-forecast = [];
+forecast_antigen = [];
 
 for antigen = 1:size(test_data)
     omega_set = [];
@@ -238,7 +238,17 @@ for antigen = 1:size(test_data)
             omega_set = vertcat(omega_set, antibodies(antibody,:) );
         end        
     end
-    forecast(antigen,:)=forecastChain(omega_set, antigens(antigen,:),threshold);  
+    forecast_antigen(antigen,:)=forecastChain(omega_set, ...
+                                antigens(antigen,:),threshold);
+    if(training_percentage == 1)
+        temp_forecast(antigen,:) = forecast_antigen(antigen,:) .*  ...
+            repmat(average_period_data(size(average_period_data,1)),1,period_size*2);
+    else
+        temp_forecast(antigen,:) = forecast_antigen(antigen,:) .* ...
+            repmat(average_period_data(cutoff_index + antigen -1),1,period_size*2);
+    end
+    forecast = temp_forecast (:,period_size+1:period_size*2);
+    
 end
 
 end
