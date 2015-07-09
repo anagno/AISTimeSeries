@@ -1,4 +1,4 @@
-function [ forecast,forecast_antigen ] = AISShortForecasting( original_data, ... 
+function [ forecast,forecast_antigen,iterations ] = AISShortForecasting( original_data, ... 
     threshold, training_percentage, max_iterations, beta )
 %AISShortForecasting This is a function for forecasting time series using an
 %artificial immune system
@@ -58,15 +58,12 @@ data = original_data ./ repmat(average_period_data,1,period_size);
 antigens = zeros(size(data,1)-1,period_size*2);
 
 for n = 2:size(data,1)
-    antigens(n-1,:) = horzcat(data(n-1,:),...
-        (original_data(n,:)./repmat(average_period_data(n),1,period_size)));
+    antigens(n-1,:) = horzcat(data(n-1,:),data(n,:));
 end
 
-% GIATI TON KANOUME TON DIAXORISMO ???
-% ISOS KAI NA MHN XREIAZETAI 
 cutoff_index = round(size(antigens,1) * training_percentage);
-train_data = antigens([1:cutoff_index],:);
-test_data = antigens([cutoff_index+1:size(antigens,1)],:);
+train_data = antigens([1:cutoff_index-1],:);
+test_data = antigens([cutoff_index:end],:);
 
 if(training_percentage == 1)
    test_data = horzcat(data(end,:),zeros(1,period_size));
@@ -248,7 +245,6 @@ for antigen = 1:size(test_data)
             repmat(average_period_data(cutoff_index + antigen -1),1,period_size*2);
     end
     forecast = temp_forecast (:,period_size+1:period_size*2);
-    
 end
 
 end
@@ -313,14 +309,13 @@ function [forecast_antigen] = forecastChain(omega, antibody, threshold)
        
     for k = (antibody_size/2):(antibody_size)
         sum_w = 0;
-        sum_y = 0;     
+        sum_wy = 0;     
         for antigen = 1:size(omega)
-            % ISOS NA YPARXEI BUG EDO
             w = 1 - ((antibody(k) - omega(antigen,k))/threshold);
             sum_w = sum_w + w;
-            sum_y = sum_y + omega(antigen,k);            
+            sum_wy = sum_wy + omega(antigen,k)*w;            
         end
-        forecast_antigen(1,k)= (sum_w*sum_y)/sum_w;
+        forecast_antigen(1,k)= (sum_wy)/sum_w;
     end
     
 end

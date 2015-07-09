@@ -11,11 +11,10 @@ load ('MaunaLoaMonthlyCO2.mat');
 % Remove incoplete data
 co2ppm = co2ppm([2:end-1],:);
 % Set up the AIS Short model forecasting
-[forecast, for_ant]= AISShortForecasting(co2ppm, 0.0020,2/3)
-real_values = co2ppm(size(co2ppm) - size(forecast)+1:end,:)
+[forecast, for_ant,iter]= AISShortForecasting(co2ppm, 0.0020,2/3);
+real_values = co2ppm(size(co2ppm) - size(forecast):end-1,:)
 
 error = real_values - forecast
-
 
 
 
