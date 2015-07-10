@@ -194,7 +194,6 @@ while(iterations <= max_iterations && total_enable_antigens > 0 )
     % threshold r). Outlier, i.e. antigen lying away from other antigens,
     % is represented by the separate antibody.
     
-    %new_antibodies = [];
     new_antibodies = zeros(size(antigens));
   
     for antigen = 1:size(antigens,1)
@@ -213,9 +212,9 @@ while(iterations <= max_iterations && total_enable_antigens > 0 )
    
     % counter for the end of while
     iterations = iterations + 1;
-    
+    fprintf('%.1f %% ready (%d out of %d iterations) \n', ...
+        ((iterations-1)/max_iterations)*100,iterations-1,max_iterations);
 end
-
 
 % Forecast procedure
 % After learning the antibodies represent overlapping clusters of
@@ -228,6 +227,15 @@ end
 
 forecast_antigen = [];
 
+affinity_table = zeros(size(test_data,1),size(antibodies,1));
+
+for new_antigen = 1:size(test_data,1)
+   for antibody = 1:size(antibodies,1)
+      affinity_table(new_antigen,antibody) =  affinityCalculation( ...
+                            test_data(new_antigen,:), antibodies(antibody,:));
+   end    
+end
+
 for antigen = 1:size(test_data)
     omega_set = [];
     for antibody = 1:size(antibodies)
@@ -236,7 +244,7 @@ for antigen = 1:size(test_data)
         end        
     end
     forecast_antigen(antigen,:)=forecastChain(omega_set, ...
-                                antigens(antigen,:),threshold);
+                                test_data(antigen,:),threshold);
     if(training_percentage == 1)
         temp_forecast(antigen,:) = forecast_antigen(antigen,:) .*  ...
             repmat(average_period_data(size(average_period_data,1)),1,period_size*2);
