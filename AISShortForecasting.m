@@ -26,6 +26,8 @@ function [ forecast,forecast_antigen,iterations ] = AISShortForecasting( origina
 switch nargin
     case 5
         
+    case 4
+        max_iterations = 50;        
     case 3
         max_iterations = 50;
         beta = 0.04;        
@@ -38,7 +40,7 @@ switch nargin
 end
 
 % !!! check if data is good with no null variables. !!!
-
+assert(sum(sum(isnan(original_data)))==0,'NaN values in data');
 
 % Preprocess the data in order to get rid of the time series trend and 
 % seasonality, and simplify the model.
@@ -55,37 +57,34 @@ data = original_data ./ repmat(average_period_data,1,period_size);
 % the training set, and after learning the model is tested using the 
 % test set.
 
-antigens = zeros(size(data,1)-1,period_size*2);
+cutoff_index = round(size(data,1) * training_percentage);
+train_data = data([1:cutoff_index-1],:);
+test_data = data([cutoff_index:end],:);
 
-for n = 2:size(data,1)
-    antigens(n-1,:) = horzcat(data(n-1,:),data(n,:));
+antigens = zeros(size(train_data,1)-1,period_size*2);
+
+for n = 2:size(train_data,1)
+    antigens(n-1,:) = horzcat(train_data(n-1,:),train_data(n,:));
 end
-
-cutoff_index = round(size(antigens,1) * training_percentage);
-train_data = antigens([1:cutoff_index-1],:);
-test_data = antigens([cutoff_index:end],:);
 
 if(training_percentage == 1)
    test_data = horzcat(data(end,:),zeros(1,period_size));
+else
+    test_data = horzcat(test_data,zeros(size(test_data)));
 end
 
-% Generation of the initial antibody population
+% Generation of the initial antibody population. An initial antibody 
+% population is created by copping all the antigens from the training 
+% set (antibodies and antigens have the same structure). This way of
+% initialization prevents inserting antibodies in empty regions without 
+% antigens
 
-antigens = train_data;
-antibodies = train_data;
-
+antibodies = antigens;
 
 % Calculation of the affinity of antibodies for antigens
-% see function antibodyDetection
+% see function calculationOfAfinityTable
 
-affinity_table = zeros(size(antigens,1),size(antibodies,1));
-
-for antigen = 1:size(antigens,1)
-   for antibody = 1:size(antibodies,1)
-      affinity_table(antigen,antibody) =  affinityCalculation( ...
-                            antigens(antigen,:), antibodies(antibody,:));
-   end    
-end
+affinity_table = calculationOfAfinityTable(antigens,antibodies);
 
 % Activated antibody detection and evaluation
 % see function affinityCalculation
@@ -98,27 +97,17 @@ end
 % the antibody and is minimized in the following iterations of 
 % the algorithm.
 
-delta_table = zeros(size(antibodies,1),1);
-total_enable_antigens = 0;
-
-for antibody = 1:size(antibodies,1)
-    delta = 0;
-    enabled_antigens = 0;
-    for antigen = 1:size(antigens,1)    
-        if (affinity_table(antigen,antibody) <= threshold)
-            delta = delta + forecastErrorCalculation( ...
-                            antigens(antigen,:), antibodies(antibody,:));
-            enabled_antigens = enabled_antigens + 1;
-        end
-    end
-    %  There is a chance of 0 enable_antigens. What should i do ???
-    delta_table(antibody) = delta/enabled_antigens;
-    total_enable_antigens = total_enable_antigens + enabled_antigens;
-end
-
+[delta_table,enabled_antigens] = antibodyEvaluation(antigens,...
+                                    antibodies,affinity_table,threshold);
+                                
+total_enable_antigens = sum(sum(enabled_antigens));
+                                
 % Do until the stop criterion is reached
 iterations = 1;
 while(iterations <= max_iterations && total_enable_antigens > 0 )
+    
+    % Store the population of antibodies to check if they change
+    old_antibodies = antibodies;
     
     % Clonal selection
     % Each antibody cases secreting as many clones as many antigens are
@@ -137,51 +126,31 @@ while(iterations <= max_iterations && total_enable_antigens > 0 )
                 % diversity of the immune system in order to effectively
                 % recognize new antigens.
                 
-                mutated_antigen = mutateAntigen(...
+                mutated_antibody = mutateAntibody(...
                         antigens(antigen,:), antibodies(antibody,:), ...
                         delta_table(antibody) , beta);
                 
-                new_antibodies(new_antibody_count,:) = mutated_antigen;
+                new_antibodies(new_antibody_count,:) = mutated_antibody;
                 new_antibody_count = new_antibody_count +1;
             end
         end
     end
-    
+
     antibodies = vertcat (antibodies, new_antibodies);
 
     % Antibody affinity calculation
     % see function affinityCalculation and previous comments
     
-    affinity_table = zeros(size(antigens,1),size(antibodies,1));
-
-    for antigen = 1:size(antigens,1)
-        for antibody = 1:size(antibodies,1)
-            affinity_table(antigen,antibody) =  affinityCalculation( ...
-                            antigens(antigen,:), antibodies(antibody,:));
-        end    
-    end
+    affinity_table = calculationOfAfinityTable(antigens,antibodies);
              
     % Activated antibody detection and evaluation
     % see function antibodyDetection and previous comments
     
-    delta_table = zeros(size(antibodies,1),1);
-    total_enable_antigens = 0;
-
-    for antibody = 1:size(antibodies,1)
-        delta = 0;
-        enabled_antigens = 0;
-        for antigen = 1:size(antigens,1)    
-            if (affinity_table(antigen,antibody) <= threshold)
-                delta = delta + forecastErrorCalculation( ...
-                            antigens(antigen,:), antibodies(antibody,:));
-                enabled_antigens = enabled_antigens + 1;
-            end
-        end
-        %  There is a chance of 0 enable_antigens. What should i do ???
-        delta_table(antibody) = delta/enabled_antigens;
-        total_enable_antigens = total_enable_antigens + enabled_antigens;
-    end
-        
+    [delta_table,enabled_antigens] = antibodyEvaluation(antigens, ...
+                            antibodies,affinity_table,threshold);
+                        
+    total_enable_antigens = sum(sum(enabled_antigens));
+                        
     % Selection of the best antibodies
     % For each antigen from the training set, the set of antibodies 
     % activated by this antigen is determined. Only one antibody from 
@@ -209,10 +178,15 @@ while(iterations <= max_iterations && total_enable_antigens > 0 )
     end
     
     antibodies = unique(new_antibodies,'rows');
-   
+
+    if(isequal(old_antibodies,antibodies))
+       fprintf('Antibodies have not evolved. Breaking out. \n')
+       break
+    end
+    
     % counter for the end of while
     iterations = iterations + 1;
-    fprintf('%.1f %% ready (%d out of %d iterations) \n', ...
+    fprintf('%.1f %% ready (%d out of %d iterations.) \n', ...
         ((iterations-1)/max_iterations)*100,iterations-1,max_iterations);
 end
 
@@ -227,14 +201,7 @@ end
 
 forecast_antigen = [];
 
-affinity_table = zeros(size(test_data,1),size(antibodies,1));
-
-for new_antigen = 1:size(test_data,1)
-   for antibody = 1:size(antibodies,1)
-      affinity_table(new_antigen,antibody) =  affinityCalculation( ...
-                            test_data(new_antigen,:), antibodies(antibody,:));
-   end    
-end
+affinity_table = calculationOfAfinityTable(test_data,antibodies);
 
 for antigen = 1:size(test_data)
     omega_set = [];
@@ -257,6 +224,44 @@ end
 
 end
 
+function [delta_table,enabled_antigens] = antibodyEvaluation( ...
+                antigens,antibodies,affinity_table,threshold)
+%antibodyEvaluation This is a function for detecting and evaluating
+%the afinity table
+    delta_table = zeros(size(antibodies,1),1);
+    enabled_antigens = zeros(size(affinity_table));
+
+    for antibody = 1:size(antibodies,1)
+        delta = 0;
+        for antigen = 1:size(antigens,1)
+            if (affinity_table(antigen,antibody) <= threshold)
+                delta = delta + forecastErrorCalculation( ...
+                    antigens(antigen,:), antibodies(antibody,:));
+                enabled_antigens(antigen,antibody) = 1;
+            end
+        end
+        % Possible bug
+        % There is a chance of 0 enable_antigens. What should i do ???
+        delta_table(antibody) = delta/sum(enabled_antigens(:,antibody));        
+    end
+
+end
+
+function [affinity_table] = calculationOfAfinityTable(antigens,antibodies)
+%calculationOfAfinityTable This is a function for calculating the afinity
+%table
+
+    affinity_table = zeros(size(antigens,1),size(antibodies,1));
+
+    for antigen = 1:size(antigens,1)
+        for antibody = 1:size(antibodies,1)
+            affinity_table(antigen,antibody) =  affinityCalculation( ...
+                            antigens(antigen,:), antibodies(antibody,:));
+        end    
+    end
+
+end
+
 function [affinity_meas] = affinityCalculation(antigen, antibody)
 %affinityCalculation This is a function for calculating the affinity 
 %measure. 
@@ -275,16 +280,16 @@ function [forecast_error] = forecastErrorCalculation(antigen, antibody)
 %error.
 %   The forecast error is based on MAPE, which is traditionally used in
 %   STFL models
-
+    
     % the size of antiges and antibody must match.
-    y_size = size(antigen,2)/2;       
-    forecast_error = sum(abs((antibody(y_size+1:end) ...
-            - antigen(y_size+1:end)) ./ antigen(y_size+1:end)))/y_size*100;
+    y_size = size(antigen,2)/2;   
+    forecast_error = (sum(abs((antibody(y_size+1:end) ...
+            - antigen(y_size+1:end)) ./ antigen(y_size+1:end)))*100)/y_size;
         
 end
 
-function [mutated_antibody] = mutateAntigen(antigen, antibody, delta, beta)
-%mutateAntigen This is a function for mutating antibodies. 
+function [mutated_antibody] = mutateAntibody(antigen, antibody, delta, beta)
+%mutateAntibody This is a function for mutating antibodies. 
 %   The hypermutation is realized as follows. Each clone of the antibody 
 %   is shifted towards different antigen lying in the recognition 
 %   region of this antibody. The bigger the error δ for the given antigen 
@@ -302,7 +307,7 @@ function [mutated_antibody] = mutateAntigen(antigen, antibody, delta, beta)
 end
 
 function [forecast_antigen] = forecastChain(omega, antibody, threshold)
-%mutateAntigen This is a function for forecasting a new antigen 
+%mutateAntibody This is a function for forecasting a new antigen 
 %   The hypermutation is realized as follows. Each clone of the antibody 
 %   is shifted towards different antigen lying in the recognition 
 %   region of this antibody. The bigger the error δ for the given antigen 
