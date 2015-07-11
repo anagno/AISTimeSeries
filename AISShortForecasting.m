@@ -1,5 +1,5 @@
-function [ forecast,forecast_antigen,iterations ] = AISShortForecasting( original_data, ... 
-    threshold, training_percentage, max_iterations, beta )
+function [forecast, confidence, iterations, forecast_antigen ] = AISShortForecasting( ...
+    original_data, threshold, training_percentage, max_iterations, beta )
 %AISShortForecasting This is a function for forecasting time series using an
 %artificial immune system
 %   The function is implemented using the algorithm presented in [1].
@@ -19,9 +19,13 @@ function [ forecast,forecast_antigen,iterations ] = AISShortForecasting( origina
 % max_iterations: The maximum number of iterations 
 %
 % OUTPUT VARIABLES:
-%
-%
-%
+% forecast: the forecast values 
+% confidence: the confidence of the forecast values. If there is not an
+%   antibody that reacts to the values then treshold is relaxed and that is
+%   shown in the confidence values that is between 0 and 1
+% iterations: the iterations that the AIS needed
+% forecast_antigen: the forecast antigens that were used to produce the
+%   forecast
 
 switch nargin
     case 5
@@ -61,8 +65,8 @@ data = original_data ./ repmat(average_period_data,1,period_size);
 % test set.
 
 cutoff_index = round(size(data,1) * training_percentage);
-train_data = data([1:cutoff_index-1],:);
-test_data = data([cutoff_index:end],:);
+train_data = data(1:cutoff_index-1,:);
+test_data = data(cutoff_index:end,:);
 
 antigens = zeros(size(train_data,1)-1,period_size*2);
 
@@ -219,28 +223,47 @@ end
 % average y-chains of antigens from the training set with similar x-chains.
 % The y-chain of the input antigen is reconstructed from the y-chains of 
 % the antibodies contained in the Omega set.
+% Antibodies, closer to the antigen, have the higher influence on the 
+% forecast forming. If an antigen is not recognized by antibodies, it 
+% means that it represents a new shape of the load curve, not contained 
+% in the training set. In this case the cross-reactivity threshold r is 
+% consistently being increased until the antigen is recognized by one or
+% more antibodies. The level of confidence in the forecast in such a case 
+% is low and the forecast should be verified.
 
-forecast_antigen = [];
-
-affinity_table = calculationOfAfinityTable(test_data,antibodies);
+forecast_antigen = zeros(size(test_data,1),period_size*2);
+forecast = zeros(size(test_data,1),period_size);
+confidence = zeros(size(test_data,1),1);
 
 for antigen = 1:size(test_data)
     omega_set = [];
-    for antibody = 1:size(antibodies)
-        if (affinity_table(antigen,antibody) <= threshold)
-            omega_set = vertcat(omega_set, antibodies(antibody,:) );
-        end        
+    new_threshold = threshold;
+    while(isempty(omega_set))
+        affinity_table = calculationOfAfinityTable(test_data,antibodies);
+        for antibody = 1:size(antibodies)
+            if (affinity_table(antigen,antibody) <= new_threshold)
+                omega_set = vertcat(omega_set, antibodies(antibody,:) );
+            end
+        end
+        % ypo sizitisi auto !!!
+        % to megalwnw 1% authaireta;
+        if(isempty(omega_set))
+            new_threshold = new_threshold + (new_threshold*0.01); 
+        end
     end
+    
+    confidence(antigen) = threshold /new_threshold;
+    
     forecast_antigen(antigen,:)=forecastChain(omega_set, ...
-                                test_data(antigen,:),threshold);
+                                test_data(antigen,:),new_threshold);
     if(training_percentage == 1)
-        temp_forecast(antigen,:) = forecast_antigen(antigen,:) .*  ...
+        temp_forecast= forecast_antigen(antigen,:) .*  ...
             repmat(average_period_data(size(average_period_data,1)),1,period_size*2);
     else
-        temp_forecast(antigen,:) = forecast_antigen(antigen,:) .* ...
+        temp_forecast = forecast_antigen(antigen,:) .* ...
             repmat(average_period_data(cutoff_index + antigen -1),1,period_size*2);
     end
-    forecast = temp_forecast (:,period_size+1:period_size*2);
+    forecast(antigen,:) = temp_forecast(period_size+1:period_size*2);
 end
 
 total_time = toc(time_start);
@@ -332,25 +355,23 @@ function [mutated_antibody] = mutateAntibody(antigen, antibody, delta, beta)
     
 end
 
-function [forecast_antigen] = forecastChain(omega, antibody, threshold)
-%mutateAntibody This is a function for forecasting a new antigen 
-%   The hypermutation is realized as follows. Each clone of the antibody 
-%   is shifted towards different antigen lying in the recognition 
-%   region of this antibody. The bigger the error δ for the given antigen 
-%   is, the bigger shift toward this antigen is. This type of 
-%   hypermutation produces new antibodies only in the regions covered 
-%   by antigens
+function [forecast_antigen] = forecastChain(omega, new_antigen, threshold)
+%forecastChain This is a function for forecasting a new antigen 
+%   The y- chains of these antibodies storage average y-chains of antigens 
+%   from the training set with similar x-chains. The y-chain of the input 
+%   antigen is reconstructed from the y-chains of the antibodies contained 
+%   in the omega set
 
     % the size of antiges and antibody must match.
-    antibody_size = size(antibody,2);
+    antibody_size = size(new_antigen,2);
     
-    forecast_antigen = antibody;
+    forecast_antigen = new_antigen;
        
     for k = (antibody_size/2):(antibody_size)
         sum_w = 0;
         sum_wy = 0;     
         for antigen = 1:size(omega)
-            w = 1 - ((antibody(k) - omega(antigen,k))/threshold);
+            w = 1 - ((new_antigen(k) - omega(antigen,k))/threshold);
             sum_w = sum_w + w;
             sum_wy = sum_wy + omega(antigen,k)*w;            
         end
