@@ -42,6 +42,9 @@ end
 % !!! check if data is good with no null variables. !!!
 assert(sum(sum(isnan(original_data)))==0,'NaN values in data');
 
+% Start timer for perfomance
+time_start = tic;
+
 % Preprocess the data in order to get rid of the time series trend and 
 % seasonality, and simplify the model.
 
@@ -185,9 +188,9 @@ while(iterations <= max_iterations)
         end
         new_antibodies(antigen,:) = best_antibody;
     end
-       
+
     antibodies = unique(new_antibodies,'rows');
-                   
+       
     if(total_enable_antigens == 0)
         fprintf('Total enable antigens are zero. Breaking out. \n')
         break
@@ -239,6 +242,11 @@ for antigen = 1:size(test_data)
     end
     forecast = temp_forecast (:,period_size+1:period_size*2);
 end
+
+total_time = toc(time_start);
+
+fprintf('The AIS run for %d minutes and %f seconds\n', ...
+    floor(total_time/60),rem(total_time,60));
 
 end
 
