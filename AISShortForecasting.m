@@ -101,10 +101,10 @@ affinity_table = calculationOfAfinityTable(antigens,antibodies);
                                     antibodies,affinity_table,threshold);
                                 
 total_enable_antigens = sum(sum(enabled_antigens));
-                                
+
 % Do until the stop criterion is reached
 iterations = 1;
-while(iterations <= max_iterations && total_enable_antigens > 0 )
+while(iterations <= max_iterations)
     
     % Store the population of antibodies to check if they change
     old_antibodies = antibodies;
@@ -117,9 +117,10 @@ while(iterations <= max_iterations && total_enable_antigens > 0 )
     %new_antibodies = [];
     new_antibodies = zeros(total_enable_antigens, period_size*2);
     new_antibody_count = 1;
+           
     for antibody = 1:size(antibodies,1)
         for antigen = 1:size(antigens,1)
-            if (affinity_table(antigen,antibody) <= threshold)
+            if (enabled_antigens(antigen,antibody))
                 
                 % Clone hypermutation
                 % The main goal of hypermutation is to improve the
@@ -135,7 +136,7 @@ while(iterations <= max_iterations && total_enable_antigens > 0 )
             end
         end
     end
-
+    
     antibodies = vertcat (antibodies, new_antibodies);
 
     % Antibody affinity calculation
@@ -164,20 +165,33 @@ while(iterations <= max_iterations && total_enable_antigens > 0 )
     % is represented by the separate antibody.
     
     new_antibodies = zeros(size(antigens));
-  
+    
+    %delta_table = zeros(size(antibodies,1),1);
+    %enabled_antigens = false(size(affinity_table));
+
     for antigen = 1:size(antigens,1)
-        best_antibody = antibodies(antigen,:);
+        best_delta = Inf;
+        best_antibody = [];
         for antibody = 1:size(antibodies,1)
-            best_delta = 0;
-            if (affinity_table(antigen,antibody) <= threshold && ...
-                affinity_table(antigen,antibody) < best_delta)
-                best_antibody = antibodies(antibody)
+            if (enabled_antigens(antigen,antibody))
+                %delta = forecastErrorCalculation( ...
+                    %antigens(antigen,:), antibodies(antibody,:));
+                delta = delta_table(antibody);
+                if(delta < best_delta)
+                   best_delta = delta;
+                   best_antibody = antibodies(antibody,:);
+                end
             end
         end
-        new_antibodies(antigen,:) = best_antibody ;
+        new_antibodies(antigen,:) = best_antibody;
     end
-    
+       
     antibodies = unique(new_antibodies,'rows');
+                   
+    if(total_enable_antigens == 0)
+        fprintf('Total enable antigens are zero. Breaking out. \n')
+        break
+    end
 
     if(isequal(old_antibodies,antibodies))
        fprintf('Antibodies have not evolved. Breaking out. \n')
@@ -186,8 +200,12 @@ while(iterations <= max_iterations && total_enable_antigens > 0 )
     
     % counter for the end of while
     iterations = iterations + 1;
-    fprintf('%.1f %% ready (%d out of %d iterations.) \n', ...
+    fprintf('%.1f %% ready (%d out of %d iterations). \n', ...
         ((iterations-1)/max_iterations)*100,iterations-1,max_iterations);
+
+    fprintf('There are %d antibodies in this iteration. \n', ...
+        size(antibodies,1) );
+    
 end
 
 % Forecast procedure
@@ -224,29 +242,6 @@ end
 
 end
 
-function [delta_table,enabled_antigens] = antibodyEvaluation( ...
-                antigens,antibodies,affinity_table,threshold)
-%antibodyEvaluation This is a function for detecting and evaluating
-%the afinity table
-    delta_table = zeros(size(antibodies,1),1);
-    enabled_antigens = zeros(size(affinity_table));
-
-    for antibody = 1:size(antibodies,1)
-        delta = 0;
-        for antigen = 1:size(antigens,1)
-            if (affinity_table(antigen,antibody) <= threshold)
-                delta = delta + forecastErrorCalculation( ...
-                    antigens(antigen,:), antibodies(antibody,:));
-                enabled_antigens(antigen,antibody) = 1;
-            end
-        end
-        % Possible bug
-        % There is a chance of 0 enable_antigens. What should i do ???
-        delta_table(antibody) = delta/sum(enabled_antigens(:,antibody));        
-    end
-
-end
-
 function [affinity_table] = calculationOfAfinityTable(antigens,antibodies)
 %calculationOfAfinityTable This is a function for calculating the afinity
 %table
@@ -273,6 +268,29 @@ function [affinity_meas] = affinityCalculation(antigen, antibody)
     affinity_meas = sqrt(sum(...
         power(antigen(1:x_size) - antibody(1:x_size),2)));
 	
+end
+
+function [delta_table,enabled_antigens] = antibodyEvaluation( ...
+                antigens,antibodies,affinity_table,threshold)
+%antibodyEvaluation This is a function for detecting and evaluating
+%the afinity table
+    delta_table = zeros(size(antibodies,1),1);
+    enabled_antigens = false(size(affinity_table));
+
+    for antibody = 1:size(antibodies,1)
+        delta = 0;
+        for antigen = 1:size(antigens,1)
+            if (affinity_table(antigen,antibody) <= threshold)
+                delta = delta + forecastErrorCalculation( ...
+                    antigens(antigen,:), antibodies(antibody,:));
+                enabled_antigens(antigen,antibody) = 1;
+            end
+        end
+        % Possible bug
+        % There is a chance of 0 enable_antigens. What should i do ???
+        delta_table(antibody) = delta/sum(enabled_antigens(:,antibody));        
+    end
+
 end
 
 function [forecast_error] = forecastErrorCalculation(antigen, antibody)
