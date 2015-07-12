@@ -1,5 +1,6 @@
-function [forecast, confidence, iterations, forecast_antigen ] = AISShortForecasting( ...
-    original_data, threshold, training_percentage, max_iterations, beta )
+function [forecast, confidence, iterations, forecast_antigen ] = ...
+    AISShortForecasting( original_data, threshold, relax_threshold, ...
+        training_percentage, max_iterations, beta )
 %AISShortForecasting This is a function for forecasting time series using an
 %artificial immune system
 %   The function is implemented using the algorithm presented in [1].
@@ -16,6 +17,8 @@ function [forecast, confidence, iterations, forecast_antigen ] = AISShortForecas
 %   population that will be used for training the AIS
 % threshold: declares the the cross-reactivity threshold r, for which an
 %   antigen is activated
+% relax_threshold: if an antigen does not react the threshold is relax
+%   according to this particular percentage.
 % max_iterations: The maximum number of iterations 
 %
 % OUTPUT VARIABLES:
@@ -28,14 +31,19 @@ function [forecast, confidence, iterations, forecast_antigen ] = AISShortForecas
 %   forecast
 
 switch nargin
-    case 5
+    case 6
         
+    case 5
+        beta = 0.04;
     case 4
-        max_iterations = 50;        
-    case 3
         max_iterations = 50;
-        beta = 0.04;        
+        beta = 0.04;
+    case 3
+        training_percentage = 2/3;
+        max_iterations = 50;
+        beta = 0.04;
     case 2
+        relax_threshold = 0.01;
         training_percentage = 2/3; 
         max_iterations = 50;
         beta = 0.04;
@@ -68,17 +76,19 @@ cutoff_index = round(size(data,1) * training_percentage);
 train_data = data(1:cutoff_index-1,:);
 test_data = data(cutoff_index:end,:);
 
+if(training_percentage == 1)
+   test_data = horzcat(data(end,:),zeros(1,period_size));
+else
+    test_data = horzcat(test_data,zeros(size(test_data)));
+end
+
 antigens = zeros(size(train_data,1)-1,period_size*2);
 
 for n = 2:size(train_data,1)
     antigens(n-1,:) = horzcat(train_data(n-1,:),train_data(n,:));
 end
 
-if(training_percentage == 1)
-   test_data = horzcat(data(end,:),zeros(1,period_size));
-else
-    test_data = horzcat(test_data,zeros(size(test_data)));
-end
+
 
 % Generation of the initial antibody population. An initial antibody 
 % population is created by copping all the antigens from the training 
@@ -242,13 +252,12 @@ for antigen = 1:size(test_data)
         affinity_table = calculationOfAfinityTable(test_data,antibodies);
         for antibody = 1:size(antibodies)
             if (affinity_table(antigen,antibody) <= new_threshold)
-                omega_set = vertcat(omega_set, antibodies(antibody,:) );
+                omega_set = vertcat(omega_set, antibodies(antibody,:));
             end
         end
-        % ypo sizitisi auto !!!
-        % to megalwnw 1% authaireta;
+
         if(isempty(omega_set))
-            new_threshold = new_threshold + (new_threshold*0.01); 
+            new_threshold = new_threshold + (new_threshold*relax_threshold);
         end
     end
     
