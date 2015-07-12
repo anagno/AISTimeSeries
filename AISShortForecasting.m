@@ -72,13 +72,15 @@ data = original_data ./ repmat(average_period_data,1,period_size);
 % the training set, and after learning the model is tested using the 
 % test set.
 
-cutoff_index = round(size(data,1) * training_percentage);
-train_data = data(1:cutoff_index-1,:);
-test_data = data(cutoff_index:end,:);
 
-if(training_percentage == 1)
+
+if(training_percentage >= 1)
+   train_data = data;
    test_data = horzcat(data(end,:),zeros(1,period_size));
 else
+    cutoff_index = round(size(data,1) * training_percentage);
+    train_data = data(1:cutoff_index-1,:);
+    test_data = data(cutoff_index:end,:);
     test_data = horzcat(test_data,zeros(size(test_data)));
 end
 
@@ -265,7 +267,7 @@ for antigen = 1:size(test_data)
     
     forecast_antigen(antigen,:)=forecastChain(omega_set, ...
                                 test_data(antigen,:),new_threshold);
-    if(training_percentage == 1)
+    if(training_percentage >= 1)
         temp_forecast= forecast_antigen(antigen,:) .*  ...
             repmat(average_period_data(size(average_period_data,1)),1,period_size*2);
     else
