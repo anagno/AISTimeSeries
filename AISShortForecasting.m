@@ -1,4 +1,4 @@
-function [forecast, confidence, iterations, forecast_antigen ] = ...
+function [forecast, confidence,original_train_data, iterations, forecast_antigen] = ...
     AISShortForecasting( original_data, threshold, relax_threshold, ...
         training_percentage, max_iterations, beta )
 %AISShortForecasting This is a function for forecasting time series using an
@@ -26,6 +26,7 @@ function [forecast, confidence, iterations, forecast_antigen ] = ...
 % confidence: the confidence of the forecast values. If there is not an
 %   antibody that reacts to the values then treshold is relaxed and that is
 %   shown in the confidence values that is between 0 and 1
+% train_data = the training data used for the AIS
 % iterations: the iterations that the AIS needed
 % forecast_antigen: the forecast antigens that were used to produce the
 %   forecast
@@ -72,14 +73,14 @@ data = original_data ./ repmat(average_period_data,1,period_size);
 % the training set, and after learning the model is tested using the 
 % test set.
 
-
-
 if(training_percentage >= 1)
    train_data = data;
+   original_train_data = original_data;
    test_data = horzcat(data(end,:),zeros(1,period_size));
 else
     cutoff_index = round(size(data,1) * training_percentage);
     train_data = data(1:cutoff_index-1,:);
+    original_train_data = original_data(1:cutoff_index-1,:);
     test_data = data(cutoff_index:end,:);
     test_data = horzcat(test_data,zeros(size(test_data)));
 end
@@ -89,8 +90,6 @@ antigens = zeros(size(train_data,1)-1,period_size*2);
 for n = 2:size(train_data,1)
     antigens(n-1,:) = horzcat(train_data(n-1,:),train_data(n,:));
 end
-
-
 
 % Generation of the initial antibody population. An initial antibody 
 % population is created by copping all the antigens from the training 
