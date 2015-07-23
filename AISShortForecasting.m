@@ -1,6 +1,7 @@
-function [forecast, confidence,original_train_data, iterations, forecast_antigen] = ...
-    AISShortForecasting( original_data, threshold, relax_threshold, ...
-        training_percentage, max_iterations, beta )
+function [forecast, confidence, original_train_data, iterations, ...
+    total_time, forecast_antigen] = AISShortForecasting( original_data, ...
+    threshold, relax_threshold, training_percentage, max_iterations, ...
+    beta, diagnostics )
 %AISShortForecasting This is a function for forecasting time series using an
 %artificial immune system
 %   The function is implemented using the algorithm presented in [1].
@@ -32,22 +33,28 @@ function [forecast, confidence,original_train_data, iterations, forecast_antigen
 %   forecast
 
 switch nargin
-    case 6
+    case 7
         
+    case 6
+        diagnostics = false;
     case 5
         beta = 0.04;
+        diagnostics = false;
     case 4
         max_iterations = 50;
         beta = 0.04;
+        diagnostics = false;
     case 3
         training_percentage = 2/3;
         max_iterations = 50;
         beta = 0.04;
+        diagnostics = false;
     case 2
         relax_threshold = 0.01;
         training_percentage = 2/3; 
         max_iterations = 50;
         beta = 0.04;
+        diagnostics = false;
     otherwise
         error ('Too few or too many arguments were entered');
 end
@@ -207,22 +214,28 @@ while(iterations <= max_iterations)
     antibodies = unique(new_antibodies,'rows');
        
     if(total_enable_antigens == 0)
-        fprintf('Total enable antigens are zero. Breaking out. \n')
+        if(diagnostics)
+            fprintf('Total enable antigens are zero. Breaking out. \n')
+        end
         break
     end
 
     if(isequal(old_antibodies,antibodies))
-       fprintf('Antibodies have not evolved. Breaking out. \n')
+       if(diagnostics)
+           fprintf('Antibodies have not evolved. Breaking out. \n')
+       end
        break
     end
     
     % counter for the end of while
     iterations = iterations + 1;
-    fprintf('%.1f %% ready (%d out of %d iterations). \n', ...
-        ((iterations-1)/max_iterations)*100,iterations-1,max_iterations);
-
-    fprintf('There are %d antibodies in this iteration. \n', ...
-        size(antibodies,1) );
+    if(diagnostics)
+        fprintf('%.1f %% ready (%d out of %d iterations). \n', ...
+            ((iterations-1)/max_iterations)*100,iterations-1,max_iterations);
+        
+        fprintf('There are %d antibodies in this iteration. \n', ...
+            size(antibodies,1) );
+    end
     
 end
 
@@ -278,8 +291,10 @@ end
 
 total_time = toc(time_start);
 
-fprintf('The AIS run for %d minutes and %f seconds\n', ...
-    floor(total_time/60),rem(total_time,60));
+if(diagnostics)
+    fprintf('The AIS run for %d minutes and %f seconds\n', ...
+        floor(total_time/60),rem(total_time,60));
+end
 
 end
 
