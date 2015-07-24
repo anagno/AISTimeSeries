@@ -193,16 +193,11 @@ while(iterations <= max_iterations)
     
     new_antibodies = zeros(size(antigens));
     
-    %delta_table = zeros(size(antibodies,1),1);
-    %enabled_antigens = false(size(affinity_table));
-
     for antigen = 1:size(antigens,1)
         best_delta = Inf;
         best_antibody = [];
         for antibody = 1:size(antibodies,1)
             if (enabled_antigens(antigen,antibody))
-                %delta = forecastErrorCalculation( ...
-                    %antigens(antigen,:), antibodies(antibody,:));
                 delta = delta_table(antibody);
                 if(delta < best_delta)
                    best_delta = delta;
@@ -260,7 +255,7 @@ end
 train_data_antigen = horzcat(train_data,zeros(size(train_data)));
 
 forecast_train_antigen = zeros(size(train_data_antigen,1),period_size*2);
-forecast_train =  zeros(size(train_data_antigen,1),period_size);
+forecast_train = zeros(size(train_data_antigen,1),period_size);
 errors = zeros(size(train_data_antigen,1),period_size);
 for antigen = 1:size(train_data_antigen)
     omega_set = [];
