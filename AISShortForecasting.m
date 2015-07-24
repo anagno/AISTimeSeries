@@ -1,5 +1,5 @@
-function [forecast, confidence, original_train_data, iterations, ...
-    total_time, forecast_antigen] = AISShortForecasting( original_data, ...
+function [forecast, confidence, iterations, total_time, forecast_antigen, ...
+    original_train_data, rmse, errors] = AISShortForecasting( original_data, ...
     threshold, relax_threshold, training_percentage, max_iterations, ...
     beta, diagnostics )
 %AISShortForecasting This is a function for forecasting time series using an
@@ -27,10 +27,13 @@ function [forecast, confidence, original_train_data, iterations, ...
 % confidence: the confidence of the forecast values. If there is not an
 %   antibody that reacts to the values then treshold is relaxed and that is
 %   shown in the confidence values that is between 0 and 1
-% train_data = the training data used for the AIS
 % iterations: the iterations that the AIS needed
+% total_time: the total running time of the algorithm
 % forecast_antigen: the forecast antigens that were used to produce the
 %   forecast
+% original_train_data = the training data used for the AIS
+% rmse: the rmse in the training data of the AIS
+% errors: the errors in the training data from which the rmse is produced
 
 switch nargin
     case 7
@@ -83,13 +86,12 @@ data = original_data ./ repmat(average_period_data,1,period_size);
 if(training_percentage >= 1)
    train_data = data;
    original_train_data = original_data;
-   test_data = horzcat(data(end,:),zeros(1,period_size));
+   test_data = data(end,:);
 else
     cutoff_index = round(size(data,1) * training_percentage);
     train_data = data(1:cutoff_index-1,:);
     original_train_data = original_data(1:cutoff_index-1,:);
     test_data = data(cutoff_index:end,:);
-    test_data = horzcat(test_data,zeros(size(test_data)));
 end
 
 antigens = zeros(size(train_data,1)-1,period_size*2);
@@ -239,6 +241,48 @@ while(iterations <= max_iterations)
     
 end
 
+% rmse for training data
+
+% conversion of the train data to antigen with zero y-chain
+train_data_antigen = horzcat(train_data,zeros(size(train_data)));
+
+forecast_train_antigen = zeros(size(train_data_antigen,1),period_size*2);
+forecast_train =  zeros(size(train_data_antigen,1),period_size);
+errors = zeros(size(train_data_antigen,1),period_size);
+for antigen = 1:size(train_data_antigen)
+    omega_set = [];
+    new_threshold = threshold;
+    while(isempty(omega_set))
+        affinity_table = calculationOfAfinityTable(train_data_antigen,antibodies);
+        for antibody = 1:size(antibodies)
+            if (affinity_table(antigen,antibody) <= new_threshold)
+                omega_set = vertcat(omega_set, antibodies(antibody,:));
+            end
+        end
+
+        if(isempty(omega_set))
+            new_threshold = new_threshold + (new_threshold*relax_threshold);
+            if(diagnostics)
+                fprintf('Relaxing threshold in training data. \n')
+            end
+        end
+    end
+                           
+    forecast_train_antigen(antigen,:)=forecastChain(omega_set, ...
+                                train_data_antigen(antigen,:),new_threshold);
+                            
+    temp_forecast= forecast_train_antigen(antigen,:) .*  ...
+        repmat(average_period_data(antigen),1,period_size*2);
+
+    forecast_train(antigen,:) = temp_forecast(period_size+1:period_size*2);
+       
+    errors(antigen,:) = (train_data(antigen,1:period_size) .*  ...
+                 repmat(average_period_data(antigen),1,period_size) )...
+          - forecast_train (antigen,:);
+end
+
+rmse = sqrt(mean((errors.^2)));
+
 % Forecast procedure
 % After learning the antibodies represent overlapping clusters of
 % similar antigens. In the forecast procedure new antigen having only 
@@ -255,15 +299,19 @@ end
 % more antibodies. The level of confidence in the forecast in such a case 
 % is low and the forecast should be verified.
 
-forecast_antigen = zeros(size(test_data,1),period_size*2);
-forecast = zeros(size(test_data,1),period_size);
-confidence = zeros(size(test_data,1),1);
 
-for antigen = 1:size(test_data)
+% conversion of the test data to antigen with zero y-chain
+test_data_antigen = horzcat(test_data,zeros(size(test_data)));
+
+forecast_antigen = zeros(size(test_data_antigen,1),period_size*2);
+forecast = zeros(size(test_data_antigen,1),period_size);
+confidence = zeros(size(test_data_antigen,1),1);
+
+for antigen = 1:size(test_data_antigen)
     omega_set = [];
     new_threshold = threshold;
     while(isempty(omega_set))
-        affinity_table = calculationOfAfinityTable(test_data,antibodies);
+        affinity_table = calculationOfAfinityTable(test_data_antigen,antibodies);
         for antibody = 1:size(antibodies)
             if (affinity_table(antigen,antibody) <= new_threshold)
                 omega_set = vertcat(omega_set, antibodies(antibody,:));
@@ -272,13 +320,16 @@ for antigen = 1:size(test_data)
 
         if(isempty(omega_set))
             new_threshold = new_threshold + (new_threshold*relax_threshold);
+            if(diagnostics)
+                fprintf('Relaxing threshold. \n')
+            end
         end
     end
     
     confidence(antigen) = threshold /new_threshold;
     
     forecast_antigen(antigen,:)=forecastChain(omega_set, ...
-                                test_data(antigen,:),new_threshold);
+                                test_data_antigen(antigen,:),new_threshold);
     if(training_percentage >= 1)
         temp_forecast= forecast_antigen(antigen,:) .*  ...
             repmat(average_period_data(size(average_period_data,1)),1,period_size*2);
