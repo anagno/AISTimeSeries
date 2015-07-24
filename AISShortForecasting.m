@@ -214,6 +214,19 @@ while(iterations <= max_iterations)
     end
 
     antibodies = unique(new_antibodies,'rows');
+    
+    % Antibody affinity calculation
+    % see function affinityCalculation and previous comments
+    
+    affinity_table = calculationOfAfinityTable(antigens,antibodies);
+             
+    % Activated antibody detection and evaluation
+    % see function antibodyDetection and previous comments
+    
+    [delta_table,enabled_antigens] = antibodyEvaluation(antigens, ...
+                            antibodies,affinity_table,threshold);
+                        
+    total_enable_antigens = sum(sum(enabled_antigens));
        
     if(total_enable_antigens == 0)
         if(diagnostics)
@@ -433,7 +446,7 @@ end
 
 function [forecast_antigen] = forecastChain(omega, new_antigen, threshold)
 %forecastChain This is a function for forecasting a new antigen 
-%   The y- chains of these antibodies storage average y-chains of antigens 
+%   The y-chains of these antibodies storage average y-chains of antigens 
 %   from the training set with similar x-chains. The y-chain of the input 
 %   antigen is reconstructed from the y-chains of the antibodies contained 
 %   in the omega set
