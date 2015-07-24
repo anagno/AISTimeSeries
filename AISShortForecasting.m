@@ -452,19 +452,14 @@ function [forecast_antigen] = forecastChain(omega, new_antigen, threshold)
 
     % the size of antiges and antibody must match.
     antibody_size = size(new_antigen,2);
-    
-    forecast_antigen = new_antigen;
-       
-    for k = (antibody_size/2):(antibody_size)
-        sum_w = 0;
-        sum_wy = 0;     
-        for antigen = 1:size(omega)
-            w = 1 - ((new_antigen(k) - omega(antigen,k))/threshold);
-            sum_w = sum_w + w;
-            sum_wy = sum_wy + omega(antigen,k)*w;            
-        end
-        forecast_antigen(1,k)= (sum_wy)/sum_w;
-    end
+
+    w = 1- (sqrt(sum(power(omega(:,1:antibody_size/2) - ...
+      repmat(new_antigen(1:antibody_size/2), size(omega,1),1),2),2))/threshold);
+
+    forecast= sum( (omega(:,1:antibody_size/2) .* repmat(w,1,antibody_size/2)),1) ...
+            ./ repmat(sum(w,1),1,antibody_size/2);
+
+    forecast_antigen = horzcat( new_antigen(:,1:antibody_size/2),forecast);
     
 end
 
