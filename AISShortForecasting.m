@@ -74,6 +74,8 @@ time_start = tic;
 period_size = size(original_data,2);
 average_period_data = mean(original_data,2);
 data = original_data ./ repmat(average_period_data,1,period_size);
+data_next = original_data(2:end,:) ./ repmat(average_period_data(1:end-1), ...
+                            1,period_size);
 
 % Loading of the training set of antigens
 % The whole dataset is divided into two subsets – training one and test 
@@ -85,19 +87,23 @@ data = original_data ./ repmat(average_period_data,1,period_size);
 
 if(training_percentage >= 1)
    train_data = data;
+   average_train = average_period_data;
    original_train_data = original_data;
    test_data = data(end,:);
+   average_test = average_period_data(end,:);
 else
     cutoff_index = round(size(data,1) * training_percentage);
     train_data = data(1:cutoff_index-1,:);
+    average_train = average_period_data(1:cutoff_index-1,:);
     original_train_data = original_data(1:cutoff_index-1,:);
     test_data = data(cutoff_index:end,:);
+    average_test = average_period_data(cutoff_index:end,:);
 end
 
 antigens = zeros(size(train_data,1)-1,period_size*2);
 
-for n = 2:size(train_data,1)
-    antigens(n-1,:) = horzcat(train_data(n-1,:),train_data(n,:));
+for n = 1:size(train_data,1)-1
+    antigens(n,:) = horzcat(train_data(n,:),data_next(n,:));
 end
 
 % Generation of the initial antibody population. An initial antibody 
@@ -257,6 +263,7 @@ train_data_antigen = horzcat(train_data,zeros(size(train_data)));
 forecast_train_antigen = zeros(size(train_data_antigen,1),period_size*2);
 forecast_train = zeros(size(train_data_antigen,1),period_size);
 errors = zeros(size(train_data_antigen,1),period_size);
+
 for antigen = 1:size(train_data_antigen)
     omega_set = [];
     new_threshold = threshold;
@@ -280,13 +287,13 @@ for antigen = 1:size(train_data_antigen)
                                 train_data_antigen(antigen,:),new_threshold);
                             
     temp_forecast= forecast_train_antigen(antigen,:) .*  ...
-        repmat(average_period_data(antigen),1,period_size*2);
+        repmat(average_train(antigen),1,period_size*2);
 
     forecast_train(antigen,:) = temp_forecast(period_size+1:period_size*2);
        
-    errors(antigen,:) = (train_data(antigen,1:period_size) .*  ...
-                 repmat(average_period_data(antigen),1,period_size) )...
-          - forecast_train (antigen,:);
+    errors(antigen,:) = forecast_train (antigen,:) - ...
+                (train_data(antigen,1:period_size) .*  ...
+                 repmat(average_train(antigen),1,period_size) );
 end
 
 rmse = sqrt(mean((errors.^2)));
@@ -337,14 +344,11 @@ for antigen = 1:size(test_data_antigen)
     confidence(antigen) = threshold /new_threshold;
     
     forecast_antigen(antigen,:)=forecastChain(omega_set, ...
-                                test_data_antigen(antigen,:),new_threshold);
-    if(training_percentage >= 1)
-        temp_forecast= forecast_antigen(antigen,:) .*  ...
-            repmat(average_period_data(size(average_period_data,1)),1,period_size*2);
-    else
-        temp_forecast = forecast_antigen(antigen,:) .* ...
-            repmat(average_period_data(cutoff_index + antigen -1),1,period_size*2);
-    end
+                            test_data_antigen(antigen,:),new_threshold);
+
+    temp_forecast = forecast_antigen(antigen,:) .* ...
+                        repmat(average_test(antigen),1,period_size*2);
+
     forecast(antigen,:) = temp_forecast(period_size+1:period_size*2);
 end
 
