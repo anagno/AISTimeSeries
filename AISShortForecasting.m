@@ -1,7 +1,7 @@
 function [forecast, confidence, antibodies, iterations, total_time,  ...
     forecast_antigen, rmse, errors] = AISShortForecasting( original_data, ...
     threshold, relax_threshold, max_iterations, ...
-    beta, forecast_data, diagnostics )
+    beta,forecast_data, input_antibodies, diagnostics )
 %AISShortForecasting This is a function for forecasting time series using an
 %artificial immune system
 %   The function is implemented using the algorithm presented in [1].
@@ -20,6 +20,7 @@ function [forecast, confidence, antibodies, iterations, total_time,  ...
 %   according to this particular percentage.
 % max_iterations: The maximum number of iterations 
 % beta: The shape parameter
+% input_antibodies: Antibodies that can be used in the AIS
 % forecast_data: The data for which a forecast from the AIS will be done.
 %   If it is left the forecast will go on only for one period
 % diagnostics: If set to true diagnostics messages will be printed
@@ -38,28 +39,35 @@ function [forecast, confidence, antibodies, iterations, total_time,  ...
 % errors: the errors in the training data from which the rmse is produced
 
 switch nargin
-    case 7
+    case 8
         
+    case 7
+        diagnostics = false;
     case 6
+        forecast_data = [];
         diagnostics = false;
     case 5
         beta = 0.04;
+        input_antibodies = [];
         forecast_data = [];
         diagnostics = false;
     case 4
         max_iterations = 50;
         beta = 0.04;
+        input_antibodies = [];
         forecast_data = [];
         diagnostics = false;
     case 3
         max_iterations = 50;
         beta = 0.04;
+        input_antibodies = [];
         forecast_data = [];
         diagnostics = false;
     case 2
         relax_threshold = 0.01; 
         max_iterations = 50;
         beta = 0.04;
+        input_antibodies = [];
         forecast_data = [];
         diagnostics = false;
     otherwise
@@ -108,12 +116,16 @@ for n = 1:size(train_data,1)-1
 end
 
 % Generation of the initial antibody population. An initial antibody 
-% population is created by copping all the antigens from the training 
+% population is created by copying all the antigens from the training
 % set (antibodies and antigens have the same structure). This way of
 % initialization prevents inserting antibodies in empty regions without 
-% antigens
+% antigens. Also the user can choose the antibodies which can be used.
 
-antibodies = antigens;
+if(size(input_antibodies,1) > 0 )
+    antibodies = input_antibodies;
+else
+    antibodies = antigens;
+end
 
 % Calculation of the affinity of antibodies for antigens
 % see function calculationOfAfinityTable
