@@ -278,7 +278,7 @@ for antigen = 1:size(train_data_antigen)
         if(isempty(omega_set))
             new_threshold = new_threshold + (new_threshold*relax_threshold);
             if(diagnostics)
-                fprintf('Relaxing threshold in training data. \n')
+                fprintf('Relaxing threshold in training data. It should NEVER happen !!! \n')
             end
         end
     end
@@ -290,7 +290,7 @@ for antigen = 1:size(train_data_antigen)
         repmat(average_train(antigen),1,period_size*2);
 
     forecast_train(antigen,:) = temp_forecast(period_size+1:period_size*2);
-       
+
     errors(antigen,:) = forecast_train (antigen,:) - ...
                 (train_data(antigen,1:period_size) .*  ...
                  repmat(average_train(antigen),1,period_size) );
