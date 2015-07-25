@@ -468,11 +468,12 @@ function [forecast_antigen] = forecastChain(omega, new_antigen, threshold)
     w = 1- (sqrt(sum(power(omega(:,1:antibody_size/2) - ...
       repmat(new_antigen(1:antibody_size/2), size(omega,1),1),2),2))/threshold);
 
-    forecast= sum( (omega(:,1:antibody_size/2) .* repmat(w,1,antibody_size/2)),1) ...
+    forecast= sum( (omega(:,antibody_size/2 + 1:antibody_size) ...
+                    .* repmat(w,1,antibody_size/2)),1) ...
             ./ repmat(sum(w,1),1,antibody_size/2);
 
     forecast_antigen = horzcat( new_antigen(:,1:antibody_size/2),forecast);
-    
+
 end
 
 
