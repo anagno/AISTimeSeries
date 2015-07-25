@@ -1,7 +1,7 @@
-function [forecast, confidence, antibodies, iterations, total_time, forecast_antigen, ...
-    original_train_data, rmse, errors] = AISShortForecasting( original_data, ...
-    threshold, relax_threshold, training_percentage, max_iterations, ...
-    beta, diagnostics )
+function [forecast, confidence, antibodies, iterations, total_time,  ...
+    forecast_antigen, rmse, errors] = AISShortForecasting( original_data, ...
+    threshold, relax_threshold, max_iterations, ...
+    beta, forecast_data, diagnostics )
 %AISShortForecasting This is a function for forecasting time series using an
 %artificial immune system
 %   The function is implemented using the algorithm presented in [1].
@@ -12,27 +12,29 @@ function [forecast, confidence, antibodies, iterations, total_time, forecast_ant
 %   2008. Springer Berlin Heidelberg, 2008. 1007-1017.
 %
 % INPUT VARIABLES:
-% data: the array of input data. It should be an array with the lines 
-%   represinting the a hole period of measumerents.
-% training_percentage: declares the percentage of the initilial
-%   population that will be used for training the AIS
+% original_data: the array of input data. It should be an array with the
+%   lines represinting the a hole period of measumerents.
 % threshold: declares the the cross-reactivity threshold r, for which an
 %   antigen is activated
 % relax_threshold: if an antigen does not react the threshold is relax
 %   according to this particular percentage.
 % max_iterations: The maximum number of iterations 
+% beta: The shape parameter
+% forecast_data: The data for which a forecast from the AIS will be done.
+%   If it is left the forecast will go on only for one period
+% diagnostics: If set to true diagnostics messages will be printed
 %
 % OUTPUT VARIABLES:
 % forecast: the forecast values 
 % confidence: the confidence of the forecast values. If there is not an
 %   antibody that reacts to the values then treshold is relaxed and that is
 %   shown in the confidence values that is between 0 and 1
+% antibodies: the produced antibodies from the AIS
 % iterations: the iterations that the AIS needed
 % total_time: the total running time of the algorithm
 % forecast_antigen: the forecast antigens that were used to produce the
 %   forecast
-% original_train_data = the training data used for the AIS
-% rmse: the rmse in the training data of the AIS
+% rmse: the rmse in the original data of the AIS
 % errors: the errors in the training data from which the rmse is produced
 
 switch nargin
@@ -42,21 +44,23 @@ switch nargin
         diagnostics = false;
     case 5
         beta = 0.04;
+        forecast_data = [];
         diagnostics = false;
     case 4
         max_iterations = 50;
         beta = 0.04;
+        forecast_data = [];
         diagnostics = false;
     case 3
-        training_percentage = 2/3;
         max_iterations = 50;
         beta = 0.04;
+        forecast_data = [];
         diagnostics = false;
     case 2
-        relax_threshold = 0.01;
-        training_percentage = 2/3; 
+        relax_threshold = 0.01; 
         max_iterations = 50;
         beta = 0.04;
+        forecast_data = [];
         diagnostics = false;
     otherwise
         error ('Too few or too many arguments were entered');
@@ -85,19 +89,16 @@ data_next = original_data(2:end,:) ./ repmat(average_period_data(1:end-1), ...
 % the training set, and after learning the model is tested using the 
 % test set.
 
-if(training_percentage >= 1)
+if(size(forecast_data,1) > 0 )
    train_data = data;
    average_train = average_period_data;
-   original_train_data = original_data;
-   test_data = data(end,:);
-   average_test = average_period_data(end,:);
+   test_data = forecast_data;
+   average_test = mean(test_data,2);
 else
-    cutoff_index = round(size(data,1) * training_percentage);
-    train_data = data(1:cutoff_index-1,:);
-    average_train = average_period_data(1:cutoff_index-1,:);
-    original_train_data = original_data(1:cutoff_index-1,:);
-    test_data = data(cutoff_index:end,:);
-    average_test = average_period_data(cutoff_index:end,:);
+    train_data = data(1:end-1,:);
+    average_train = average_period_data(1:end-1,:);
+    test_data = data(end,:);
+    average_test = average_period_data(end,:);
 end
 
 antigens = zeros(size(train_data,1)-1,period_size*2);
@@ -147,7 +148,6 @@ while(iterations <= max_iterations)
     % in its recognition region. Thus most clones are generated in the
     % dense clusters of antigens.
     
-    %new_antibodies = [];
     new_antibodies = zeros(total_enable_antigens, period_size*2);
     new_antibody_count = 1;
            
@@ -182,9 +182,7 @@ while(iterations <= max_iterations)
     
     [delta_table,enabled_antigens] = antibodyEvaluation(antigens, ...
                             antibodies,affinity_table,threshold);
-                        
-    total_enable_antigens = sum(sum(enabled_antigens));
-                        
+
     % Selection of the best antibodies
     % For each antigen from the training set, the set of antibodies 
     % activated by this antigen is determined. Only one antibody from 
