@@ -107,7 +107,7 @@ if(size(forecast_data,1) > 0 )
    test_data = forecast_data;
 else
     train_data = data(1:end,:);
-    average_train = average_period_data(1:end-1,:);
+    average_train = average_period_data(1:end,:);
     test_data = data(end,:);
     average_test = average_period_data(end,:);
 end
@@ -268,13 +268,15 @@ end
 % rmse for training data
 
 % conversion of the train data to antigen with zero y-chain
-train_data_antigen = horzcat(train_data,zeros(size(train_data)));
+% minus one is due to the last value is use to forecast
+train_data_antigen = horzcat(train_data(1:end-1,:), ...
+                        zeros(size(train_data(1:end-1,:))));
 
-forecast_train_antigen = zeros(size(train_data_antigen,1)-1,period_size*2);
-forecast_train = zeros(size(train_data_antigen,1)-1,period_size);
-errors = zeros(size(train_data_antigen,1)-1,period_size);
+forecast_train_antigen = zeros(size(train_data_antigen,1),period_size*2);
+forecast_train = zeros(size(train_data_antigen,1),period_size);
+errors = zeros(size(train_data_antigen,1),period_size);
 
-for antigen = 1:size(antigens,1)
+for antigen = 1:size(train_data_antigen,1)
     omega_set = [];
     new_threshold = threshold;
     while(isempty(omega_set))
