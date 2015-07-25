@@ -12,7 +12,7 @@ load ('MaunaLoaMonthlyCO2.mat');
 co2ppm = co2ppm(2:end-1,:);
 
 MinYear = 1959;
-MaxYear = MinYear + size(co2ppm,1)+1;
+MaxYear = MinYear + size(co2ppm,1);
 dt = 1/size(co2ppm,2);
 t_min = MinYear;
 t_max = MaxYear;
@@ -20,7 +20,7 @@ t = [t_min:dt:t_max];
 % Due to the fact that the 2014 is not included.
 t = t(1:end-1);
 
-training_percentage = 0.9;
+training_percentage = 0.4;
 cutoff_index = round(size(co2ppm,1) * training_percentage);
 
 training_data = co2ppm(1:cutoff_index-1,:);
@@ -28,10 +28,10 @@ testing_data = co2ppm(cutoff_index-1:end-1,:);
 
 % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!%
 % Set the parameters.
-threshold = 0.003;
-relax_threshold = 0.1;
-max_iterations = 50 ;
-beta = 0.05 ;
+threshold = 0.0035;
+relax_threshold = 0.9;
+max_iterations = 500 ;
+beta = 0.04 ;
 
 % Set up the AIS Short model forecasting
 [forecast, confidence, antibodies,iter, total_time, antigens, ...
@@ -40,7 +40,9 @@ beta = 0.05 ;
             max_iterations, beta,testing_data,[],true);
                             
 % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!%                            
-confidence
+
+% To show the differences
+training_data(2:end,:) = training_data(2:end,:) + train_errors;
 
 train_data_reshape = reshape(training_data',numel(training_data),1);
 forecast_reshape = reshape(forecast',numel(forecast),1);
@@ -51,7 +53,7 @@ figure('Name','Fit Visualization');
 hold on
 plot(t(1:size(co2ppm_reshape))',co2ppm_reshape,'.b');
 plot(t(1:size(train_data_reshape))',train_data_reshape,'.g');
-plot(t(size(train_data_reshape)+1:end-12)',forecast_reshape,'.r');
+plot(t(end-size(forecast_reshape)+1:end)',forecast_reshape,'.r');
 title(strcat('Parameters: threshold=',num2str(threshold) , ...
              ', relax\_threshold=', num2str(relax_threshold), ...
              ',\newlinetraining\_percentage=', num2str(training_percentage), ...
@@ -85,7 +87,7 @@ figure_name = 'Fit Residuals Visualization';
 figure('Name',figure_name)%,'Visible','off');
 hold on
 plot(t(1:size(train_error_reshape))',train_error_reshape,'.g');
-plot(t(size(train_data_reshape)+1:end-12)',error_reshape,'.r');
+plot(t(end-size(error_reshape)+1:end)',error_reshape,'.r');
 title(strcat('Parameters: threshold=',num2str(threshold) , ...
             ', relax\_threshold=', num2str(relax_threshold), ...
              ',\newlinetraining\_percentage=', num2str(training_percentage), ...
