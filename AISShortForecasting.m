@@ -44,7 +44,7 @@ switch nargin
     case 7
         diagnostics = false;
     case 6
-        forecast_data = [];
+        input_antibodies = [];
         diagnostics = false;
     case 5
         beta = 0.04;
@@ -98,22 +98,22 @@ data_next = original_data(2:end,:) ./ repmat(average_period_data(1:end-1), ...
 % test set.
 
 if(size(forecast_data,1) > 0 )
+   assert(size(forecast_data,2) == size(original_data,2), ...
+      'Periods are of forecast data and training data is not the same');
    train_data = data;
    average_train = average_period_data;
+   average_test = mean(forecast_data,2);
+   forecast_data = forecast_data ./ repmat(average_test,1,period_size);
    test_data = forecast_data;
-   average_test = mean(test_data,2);
 else
-    train_data = data(1:end-1,:);
+    train_data = data(1:end,:);
     average_train = average_period_data(1:end-1,:);
     test_data = data(end,:);
     average_test = average_period_data(end,:);
 end
 
-antigens = zeros(size(train_data,1)-1,period_size*2);
-
-for n = 1:size(train_data,1)-1
-    antigens(n,:) = horzcat(train_data(n,:),data_next(n,:));
-end
+antigens(:,:) = horzcat(train_data(1:size(train_data)-1,:), ...
+                                    data_next(:,:));
 
 % Generation of the initial antibody population. An initial antibody 
 % population is created by copying all the antigens from the training
@@ -181,7 +181,7 @@ while(iterations <= max_iterations)
             end
         end
     end
-    
+
     antibodies = vertcat (antibodies, new_antibodies);
 
     % Antibody affinity calculation
@@ -270,11 +270,11 @@ end
 % conversion of the train data to antigen with zero y-chain
 train_data_antigen = horzcat(train_data,zeros(size(train_data)));
 
-forecast_train_antigen = zeros(size(train_data_antigen,1),period_size*2);
-forecast_train = zeros(size(train_data_antigen,1),period_size);
-errors = zeros(size(train_data_antigen,1),period_size);
+forecast_train_antigen = zeros(size(train_data_antigen,1)-1,period_size*2);
+forecast_train = zeros(size(train_data_antigen,1)-1,period_size);
+errors = zeros(size(train_data_antigen,1)-1,period_size);
 
-for antigen = 1:size(train_data_antigen)
+for antigen = 1:size(antigens,1)
     omega_set = [];
     new_threshold = threshold;
     while(isempty(omega_set))
@@ -302,7 +302,7 @@ for antigen = 1:size(train_data_antigen)
     forecast_train(antigen,:) = temp_forecast(period_size+1:period_size*2);
 
     errors(antigen,:) = forecast_train (antigen,:) - ...
-                (train_data(antigen,1:period_size) .*  ...
+                (antigens(antigen,period_size+1:period_size*2) .*  ...
                  repmat(average_train(antigen),1,period_size) );
 end
 
@@ -412,7 +412,7 @@ function [delta_table,enabled_antigens] = antibodyEvaluation( ...
             if (affinity_table(antigen,antibody) <= threshold)
                 delta = delta + forecastErrorCalculation( ...
                     antigens(antigen,:), antibodies(antibody,:));
-                enabled_antigens(antigen,antibody) = 1;
+                enabled_antigens(antigen,antibody) = true;
             end
         end
         % Possible bug
@@ -446,7 +446,7 @@ function [mutated_antibody] = mutateAntibody(antigen, antibody, delta, beta)
 
     % the size of antiges and antibody must match.
     ag_size = size(antigen,2);
-    
+
     mutated_antibody = antibody(1:end) + ...
         ((2*ones(1,ag_size)./(exp(-normrnd(1,0.1,ag_size,1)'*beta*delta)+1))-1).* ...
         (antigen(1:end) - antibody(1:end));
