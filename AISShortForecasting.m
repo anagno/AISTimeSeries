@@ -1,7 +1,7 @@
 function [forecast, confidence, antibodies, iterations, total_time,  ...
     forecast_antigen, rmse, errors] = AISShortForecasting( original_data, ...
     threshold, relax_threshold, max_iterations, ...
-    beta,forecast_data, input_antibodies, diagnostics )
+    beta,forecast_data, input_antibodies, hypermutation, diagnostics )
 %AISShortForecasting This is a function for forecasting time series using an
 %artificial immune system
 %   The function is implemented using the algorithm presented in [1].
@@ -23,6 +23,8 @@ function [forecast, confidence, antibodies, iterations, total_time,  ...
 % input_antibodies: Antibodies that can be used in the AIS
 % forecast_data: The data for which a forecast from the AIS will be done.
 %   If it is left the forecast will go on only for one period
+% hypermutation: A parameter that instructs the AIS not to produce new
+%   antibodies. Should only be used if the antibodies are provided
 % diagnostics: If set to true diagnostics messages will be printed
 %
 % OUTPUT VARIABLES:
@@ -39,10 +41,13 @@ function [forecast, confidence, antibodies, iterations, total_time,  ...
 % errors: the errors in the training data from which the rmse is produced
 
 switch nargin
-    case 8
+    case 9 
         
+    case 8
+        hypermutation = false;
     case 7
         diagnostics = false;
+        hypermutation = false;
     case 6
         input_antibodies = [];
         diagnostics = false;
@@ -51,18 +56,21 @@ switch nargin
         input_antibodies = [];
         forecast_data = [];
         diagnostics = false;
+        hypermutation = false;
     case 4
         max_iterations = 50;
         beta = 0.04;
         input_antibodies = [];
         forecast_data = [];
         diagnostics = false;
+        hypermutation = false;
     case 3
         max_iterations = 50;
         beta = 0.04;
         input_antibodies = [];
         forecast_data = [];
         diagnostics = false;
+        hypermutation = false;
     case 2
         relax_threshold = 0.01; 
         max_iterations = 50;
@@ -70,6 +78,7 @@ switch nargin
         input_antibodies = [];
         forecast_data = [];
         diagnostics = false;
+        hypermutation = false;
     otherwise
         error ('Too few or too many arguments were entered');
 end
@@ -150,7 +159,7 @@ total_enable_antigens = sum(sum(enabled_antigens));
 
 % Do until the stop criterion is reached
 iterations = 1;
-while(iterations <= max_iterations)
+while(hypermutation == true && iterations <= max_iterations)
     
     % Store the population of antibodies to check if they change
     old_antibodies = antibodies;
