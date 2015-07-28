@@ -1,0 +1,10 @@
+*.*~
+
+bin/*
+
+# references/*
+
+doc/bin/*
+!doc/bin/*.pdf
+
+doc/references.bib.bak
