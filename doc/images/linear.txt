@@ -1,0 +1,8 @@
+Goodness of fit measures on training data:
+------------------------------------------
+RMSE(train): 3.183062e+00
+RSQUARE(train): 9.768771e-01
+Goodness of fit measures on testing data:
+------------------------------------------
+RMSE(test): 7.255561e+00
+RSQUARE(test): -2.023810e+00
