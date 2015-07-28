@@ -2,7 +2,7 @@
 
 bin/*
 
-# references/*
+# doc/references/*
 
 doc/bin/*
 !doc/bin/*.pdf
