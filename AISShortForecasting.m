@@ -13,7 +13,7 @@ function [forecast, confidence, antibodies, iterations, total_time,  ...
 %
 % INPUT VARIABLES:
 % original_data: the array of input data. It should be an array with the
-%   lines represinting the a hole period of measumerents.
+%   lines representing the a hole period of measurements.
 % threshold: declares the the cross-reactivity threshold r, for which an
 %   antigen is activated
 % relax_threshold: if an antigen does not react the threshold is relax
@@ -30,7 +30,7 @@ function [forecast, confidence, antibodies, iterations, total_time,  ...
 % OUTPUT VARIABLES:
 % forecast: the forecast values 
 % confidence: the confidence of the forecast values. If there is not an
-%   antibody that reacts to the values then treshold is relaxed and that is
+%   antibody that reacts to the values then threshold is relaxed and that is
 %   shown in the confidence values that is between 0 and 1
 % antibodies: the produced antibodies from the AIS
 % iterations: the iterations that the AIS needed
