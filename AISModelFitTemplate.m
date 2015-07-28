@@ -20,7 +20,7 @@ t = [t_min:dt:t_max];
 % Due to the fact that the 2014 is not included.
 t = t(1:end-1);
 
-training_percentage = 0.8;
+training_percentage = 0.9;
 cutoff_index = round(size(co2ppm,1) * training_percentage);
 
 training_data = co2ppm(1:cutoff_index-1,:);
@@ -43,7 +43,7 @@ beta = 0.04 ;
 [forecast, confidence, antibodies,iter, total_time, antigens, ...
             train_rmse, train_errors]= ...
             AISShortForecasting(training_data, threshold, relax_threshold, ...
-            max_iterations, beta,testing_data,antibodies_long,false,true);
+            max_iterations, beta,testing_data,[],true,true);
                             
 % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!%                            
 
